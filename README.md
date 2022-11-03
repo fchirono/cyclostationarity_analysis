@@ -10,7 +10,7 @@ These codes contain some of my current explorations into cyclostationary signal 
 
 Click the link below to open the example file on Google Colab
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/fchirono/.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/fchirono/cyclostationarity_analysis/blob/main/cyclostationary_analysis.ipynb)
 
 ## Author:
 Fabio Casagrande Hirono - fchirono [at] gmail.com
