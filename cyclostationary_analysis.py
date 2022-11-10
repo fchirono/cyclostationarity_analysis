@@ -516,7 +516,7 @@ print('Time-bandwidth product = {:.2f}'.format(TB))
 N_alpha = 11
 alpha_vec = np.linspace(0., 1., N_alpha)*fs
 
-Syy, rho_y = cyclic_periodogram(y, y, alpha_vec, N_psd, fs)
+Syy, rho_y = cyclic_periodogram(noisy_y, noisy_y, alpha_vec, N_psd, fs)
 
 # %% plot spectral correlation density and spectral coherence in 2D
 
@@ -705,8 +705,9 @@ ax2.view_init(elev=30, azim=-45)
 # %% plot conjugate spectral correlation density and spectral coherence in 3D
 
 # run conjugate cyclic periodogram over range of alphas
-N_alpha_c = 21
-alpha_vec_c = np.linspace(-1., 1., N_alpha_c)*fs
+# --> range of alphas is different for conjugate functions!
+N_alpha_c = 19
+alpha_vec_c = 2*fc + np.linspace(-N_alpha_c//2, N_alpha_c//2-1, N_alpha_c)*(1/T_bits)
 
 Syy_c, rho_y_c = cyclic_periodogram(y, y, alpha_vec_c, N_psd, fs)
 
@@ -722,7 +723,7 @@ fig3 = plt.figure(figsize=(9, 6))
 ax3 = fig3.add_subplot(projection='3d')
 
 verts_c = [polygon_under_graph(freq_vec[freqs_inside_c[a]]/fs,
-                                np.abs(Syy_c[a, freqs_inside_c[a]]))
+                               np.abs(Syy_c[a, freqs_inside_c[a]]))
             for a in range(N_alpha_c)]
 
 # create list of facecolors - incompatible with Matplotlib v3.2.2 currently available
@@ -797,3 +798,68 @@ ax4.set_zlabel('Magnitude [Linear]', fontsize=12)
 ax2.set_title('Conjugate Spectral coherence', fontsize=15)
 
 # # ****************************************************************************
+
+
+
+# %% read Chad's mat file
+
+from scipy.io import loadmat
+
+matfile = loadmat('theory_and_meas_functions_new.mat')
+
+# ****************************************************************************
+# plot PSD
+psd_fsm = np.squeeze(matfile['psd_fsm'])
+freq_psd = np.squeeze(matfile['f_meas_psd'])
+
+psd_theory = np.squeeze(matfile['psd_theory'])
+freq_theory_psd = np.squeeze(matfile['f_theory_psd'])
+
+
+plt.figure()
+plt.plot(freq_psd, psd_fsm, label='FSM')
+plt.plot(freq_theory_psd, psd_theory, '--', label='Theory')
+plt.plot(freq_vec/fs,
+          10*np.log10(np.abs(Syy[0, :])), ':', label='Python')
+plt.legend()
+plt.title('PSD')
+plt.grid()
+plt.ylim([-30, 15])
+
+
+# ****************************************************************************
+# plot Spectral Correlation Function (non-conjugate)
+scf_nc_fsm1 = np.squeeze(matfile['scf_nc_fsm_1'])
+freq_meas_nc = np.squeeze(matfile['f_meas_nc'])
+
+scf_nc_theory1 = np.squeeze(matfile['scf_nc_theory_1'])
+freq_theory_nc = np.squeeze(matfile['f_theory_nc'])
+
+plt.figure()
+plt.plot(freq_meas_nc, scf_nc_fsm1, label='FSM')
+plt.plot(freq_theory_nc, scf_nc_theory1, '--', label='Theory')
+plt.plot(freq_vec/fs,
+          10*np.log10(np.abs(Syy[1, :])), ':', label='Python')
+plt.legend()
+plt.title('SCF NC alpha=0.1')
+plt.grid()
+plt.ylim([-30, 15])
+
+# ****************************************************************************
+# plot SCF (conjugate)
+
+scf_c_fsm1 = np.squeeze(matfile['scf_c_fsm_p1'])
+freq_meas_c = np.squeeze(matfile['f_meas_c'])
+
+scf_c_theory1 = np.squeeze(matfile['scf_c_theory_p1'])
+freq_theory_c = np.squeeze(matfile['f_theory_c'])
+
+plt.figure()
+plt.plot(freq_meas_c, scf_c_fsm1, label='FSM')
+plt.plot(freq_theory_c, scf_c_theory1, '--', label='Theory')
+plt.plot(freq_vec/fs,
+          10*np.log10(np.abs(Syy_c[11, :])), ':', label='Python')
+plt.legend()
+plt.title('SCF C alpha=+0.1')
+plt.grid()
+plt.ylim([-30, 15])
