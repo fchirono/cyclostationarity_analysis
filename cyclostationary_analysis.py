@@ -86,68 +86,6 @@ def calc_xspec_block(x, y, t, alpha=0):
     return Suu, Svv, Suv
 
 
-def calc_conj_xspec_block(x, y, t, alpha=0):
-    """
-    Calculate *conjugated* cross-spectrum for one block of data over time
-    samples 't', optionally including cyclic frequency shift 'alpha'.
-
-    Parameters
-    ----------
-    x : (N,)-shaped array_like
-        Numpy array containing one 'N'-samples-long block of data from signal
-        'x'.
-
-    y : (N,)-shaped array_like
-        Numpy array containing one 'N'-samples-long block of data from signal
-        'y'.
-
-    t : (N,)-shaped array_like
-        Numpy array containing one 'N'-samples-long block of time values, in
-        seconds.
-
-    alpha : float, optional
-        Cyclic frequency 'alpha', in Hz. Default is 0.
-
-
-    Returns
-    -------
-    Suu : (N,)-shaped array_like
-        Numpy array containing auto-power spectrum of signal 'x',
-        frequency-shifted by +'alpha'/2.
-
-    Svv : (N,)-shaped array_like
-        Numpy array containing auto-power spectrum of signal 'y',
-        frequency-reversed and frequency-shifted by +'alpha'/2.
-
-    Suv : (N,)-shaped array_like
-        Numpy array containing cross-power spectrum of signal 'x'
-        frequency-shifted by +'alpha'/2, and signal 'y' frequency-reversed and
-        frequency-shifted by +'alpha'/2.
-
-    """
-
-    # applies frequency shift of +alpha/2
-    u_block = x*np.exp(-1j*np.pi*alpha*t)
-
-    # applies frequency shift of -alpha/2
-    v_block = y*np.exp(+1j*np.pi*alpha*t)
-
-
-    # take FFT of data blocks
-    u_f = np.fft.fft(u_block)
-    v_f = np.fft.fft(v_block)
-
-    # frequency-reverse v_f, so it changes from Y(f-alpha/2) to Y(-f+alpha/2)
-    v_f = v_f[::-1]
-
-    # calculates auto- and cross-power spectra
-    Suu = (u_f * u_f.conj()).real
-    Svv = (v_f * v_f.conj()).real
-    Suv = (u_f * v_f.conj())
-
-    return Suu, Svv, Suv
-
-
 def cyclic_periodogram(x, y, alpha_vec, Ndft, fs, mode='non-conj'):
     """
     Calculates cyclic spectral density and cyclic spectral coherence using
@@ -192,7 +130,6 @@ def cyclic_periodogram(x, y, alpha_vec, Ndft, fs, mode='non-conj'):
     Nt = x.shape[0]
     N_blocks = Nt//Ndft
 
-
     df = fs/Ndft
     freq = np.linspace(0, fs-df, Ndft)-fs/2
 
@@ -201,36 +138,22 @@ def cyclic_periodogram(x, y, alpha_vec, Ndft, fs, mode='non-conj'):
     Syy = np.zeros((N_blocks, N_alpha, Ndft))
     Sxy = np.zeros((N_blocks, N_alpha, Ndft), dtype='complex')
 
-    # -------------------------------------------------------------------------
-    if mode == 'non-conj':
-        for n in range(N_blocks):
+    # If calculating the *conjugate* SCF/coherence
+    if mode=='conj':
+        y = y.conj()
 
-            n_start = n*Ndft
-            t_block = np.linspace(n_start/fs, (n_start+Ndft)/fs, Ndft)
+    for n in range(N_blocks):
 
-            x_block = x[n_start : n_start+Ndft]
-            y_block = y[n_start : n_start+Ndft]
+        n_start = n*Ndft
+        t_block = np.linspace(n_start/fs, (n_start+Ndft)/fs, Ndft)
 
-            # calculate non-conjugate spectra for alpha values in 'alpha_vec'
-            for a, alpha in enumerate(alpha_vec):
-                Sxx[n, a, :], Syy[n, a, :], Sxy[n, a, :] = calc_xspec_block(x_block, y_block,
-                                                                            t_block, alpha)
+        x_block = x[n_start : n_start+Ndft]
+        y_block = y[n_start : n_start+Ndft]
 
-    # -------------------------------------------------------------------------
-    elif mode == 'conj':
-        for n in range(N_blocks):
-
-            n_start = n*Ndft
-            t_block = np.linspace(n_start/fs, (n_start+Ndft)/fs, Ndft)
-
-            x_block = x[n_start : n_start+Ndft]
-            y_block = y[n_start : n_start+Ndft]
-
-            # calculate conjugate spectra for alpha values in 'alpha_vec'
-            for a, alpha in enumerate(alpha_vec):
-                Sxx[n, a, :], Syy[n, a, :], Sxy[n, a, :] = calc_conj_xspec_block(x_block, y_block,
-                                                                                 t_block, alpha)
-    # -------------------------------------------------------------------------
+        # calculate non-conjugate spectra for alpha values in 'alpha_vec'
+        for a, alpha in enumerate(alpha_vec):
+            Sxx[n, a, :], Syy[n, a, :], Sxy[n, a, :] = calc_xspec_block(x_block, y_block,
+                                                                        t_block, alpha)
 
     Sxx *= 1/(Ndft*fs)
     Syy *= 1/(Ndft*fs)
@@ -522,7 +445,7 @@ Syy, rho_y = cyclic_periodogram(noisy_y, noisy_y, alpha_vec, N_psd, fs)
 
 
 lines = ['-', '--', '-.', ':']
-linewidths = [2.5, 1, 0.5]
+linewidths = [2.5, 1, 0.5, 0.25]
 N_lines = len(lines)
 
 max_Syy_dB = 10*np.log10(np.nanmax(np.abs(Syy)))
@@ -567,33 +490,6 @@ plt.ylim([0., 1.2])
 plt.title('Spectral coherence function', fontsize=15)
 plt.grid()
 plt.tight_layout()
-
-
-# %% Old code with wireframe plots
-
-# plt.figure(figsize=(12, 8))
-# ax = plt.subplot(111, projection='3d')
-# ax.plot_wireframe(alpha_vec[:, np.newaxis]/fs, freq_vec/fs,
-#                   np.abs(Syy),
-#                   rstride=1, cstride=0)
-
-# ax.set_title('Spectral correlation density', fontsize=15)
-# ax.set_xlabel(r'$\alpha/f_s$', fontsize=12)
-# ax.set_ylabel(r'freq/$f_s$', fontsize=12)
-# ax.set_zlabel('Magnitude [dB]', fontsize=12)
-# plt.tight_layout()
-
-
-# plt.figure(figsize=(8, 6))
-# ax = plt.subplot(111, projection='3d')
-# ax.plot_wireframe(alpha_vec[:, np.newaxis]/fs, freq_vec/fs,
-#                   np.abs(rho_y),
-#                   rstride=1, cstride=0)
-
-# ax.set_title('Spectral coherence function')
-# ax.set_xlabel('alpha/fs')
-# ax.set_ylabel('freq/fs')
-
 
 
 # %% plot spectral correlation density and spectral coherence in 3D
@@ -702,20 +598,68 @@ ax2.view_init(elev=30, azim=-45)
 # ****************************************************************************
 
 
-# %% plot conjugate spectral correlation density and spectral coherence in 3D
+# %% calculate *conjugate* spectral correlation density and conjugate spectral
+# coherence
 
 # run conjugate cyclic periodogram over range of alphas
 # --> range of alphas is different for conjugate functions!
 N_alpha_c = 19
 alpha_vec_c = 2*fc + np.linspace(-N_alpha_c//2, N_alpha_c//2-1, N_alpha_c)*(1/T_bits)
 
-Syy_c, rho_y_c = cyclic_periodogram(y, y, alpha_vec_c, N_psd, fs)
+Syy_c, rho_y_c = cyclic_periodogram(noisy_y, noisy_y, alpha_vec_c, N_psd, fs,
+                                    mode='conj')
+
+
+max_Syyc_dB = 10*np.log10(np.nanmax(np.abs(Syy_c)))
 
 # create boolean mask for frequencies inside principal domain in f-alpha plane
 freqs_inside_c = np.zeros((N_alpha_c, N_psd), dtype='bool')
 for a, alpha in enumerate(alpha_vec_c):
     freqs_inside_c[a, :] = (np.abs(freq_vec) <= (fs - np.abs(alpha))/2)
 
+# ****************************************************************************
+# plot conjugate spectral correlation density
+
+plt.figure(figsize=(9, 6))
+for a in range(6, N_alpha_c-6):
+    plt.plot(freq_vec/fs,
+             10*np.log10(np.abs(Syy_c[a, :])),
+             linestyle=lines[(a-6)%N_lines],
+             linewidth=linewidths[(a-6)//N_lines],
+             label=r'$\alpha/f_s$={:.2f}'.format(alpha_vec_c[a]/fs))
+plt.legend(loc='upper left', fontsize=12)
+
+plt.xlabel(r'freq/$f_s$', fontsize=12)
+plt.xlim([-0.5, 0.5])
+
+plt.ylabel('Magnitude [dB]', fontsize=12)
+plt.ylim([max_Syyc_dB-25, max_Syyc_dB+5])
+
+plt.title('Conjugate Spectral correlation density', fontsize=15)
+plt.grid()
+plt.tight_layout()
+
+# ****************************************************************************
+# plot spectral coherence
+
+plt.figure(figsize=(9, 6))
+for a in range(6, N_alpha_c-6):
+    plt.plot(freq_vec/fs,
+             np.abs(rho_y_c[a, :]),
+             linestyle=lines[(a-6)%N_lines],
+             linewidth=linewidths[(a-6)//N_lines],
+             label=r'$\alpha/f_s$={:.2f}'.format(alpha_vec_c[a]/fs))
+plt.legend(loc='upper left', fontsize=12)
+
+plt.xlabel(r'freq/$f_s$', fontsize=12)
+plt.xlim([-0.5, 0.5])
+
+plt.ylabel('Magnitude [Linear]', fontsize=12)
+plt.ylim([0., 1.2])
+
+plt.title('Conjugate Spectral coherence function', fontsize=15)
+plt.grid()
+plt.tight_layout()
 
 # ****************************************************************************
 # plot conjugate spectral correlation density
@@ -795,71 +739,123 @@ ax4.set_zlabel('Magnitude [Linear]', fontsize=12)
 # in Google Colab :(
 #ax1.set_box_aspect((1, 1, 0.5))
 
-ax2.set_title('Conjugate Spectral coherence', fontsize=15)
+ax4.set_title('Conjugate Spectral coherence', fontsize=15)
 
 # # ****************************************************************************
 
 
 
-# %% read Chad's mat file
+# %% compare results to Chad's mat file
 
-from scipy.io import loadmat
+# from scipy.io import loadmat
 
-matfile = loadmat('theory_and_meas_functions_new.mat')
+# matfile = loadmat('theory_and_meas_functions_new.mat')
 
-# ****************************************************************************
-# plot PSD
-psd_fsm = np.squeeze(matfile['psd_fsm'])
-freq_psd = np.squeeze(matfile['f_meas_psd'])
+# save_figs = True
 
-psd_theory = np.squeeze(matfile['psd_theory'])
-freq_theory_psd = np.squeeze(matfile['f_theory_psd'])
+# # ****************************************************************************
+# # plot PSD
+# psd_fsm = np.squeeze(matfile['psd_fsm'])
+# freq_psd = np.squeeze(matfile['f_meas_psd'])
+
+# psd_theory = np.squeeze(matfile['psd_theory'])
+# freq_theory_psd = np.squeeze(matfile['f_theory_psd'])
+
+# plt.figure(figsize=(8, 4))
+# plt.plot(freq_psd, psd_fsm, linewidth=2.5, label='FSM (CSP Blog)')
+# plt.plot(freq_theory_psd, psd_theory, '--', linewidth=3, label='Theory (CSP Blog)')
+# plt.plot(freq_vec/fs,
+#           10*np.log10(np.abs(Syy[0, :])), ':', color='k',
+#           linewidth=1.5, label='Python')
+# plt.legend()
+# plt.title('PSD')
+# plt.grid()
+# plt.xlabel(r'$freq/f_s$', fontsize=12)
+# plt.ylabel('Magnitude [dB]', fontsize=12)
+# plt.ylim([-15, 15])
+
+# plt.tight_layout()
+
+# if save_figs:
+#     plt.savefig('Comparison_CSPBlog_PSD.png')
+
+# # ****************************************************************************
+# # plot Spectral Correlation Function (non-conjugate)
+
+# plt.figure(figsize=(8, 8))
+
+# for a in range(1, 4):
+
+#     scf_nc_fsm = np.squeeze(matfile['scf_nc_fsm_' + str(a)])
+#     freq_meas_nc = np.squeeze(matfile['f_meas_nc'])
+
+#     scf_nc_theory = np.squeeze(matfile['scf_nc_theory_' + str(a)])
+#     freq_theory_nc = np.squeeze(matfile['f_theory_nc'])
+
+#     #plt.figure()
+#     plt.subplot(3,1,a)
+#     plt.plot(freq_meas_nc, scf_nc_fsm, linewidth=2.5,
+#               label='FSM (CSP Blog)')
+#     plt.plot(freq_theory_nc, scf_nc_theory, '--', linewidth=3.,
+#               label='Theory (CSP Blog)')
+#     plt.plot(freq_vec/fs,
+#               10*np.log10(np.abs(Syy[a, :])), ':', linewidth=1.5, color='k',
+#               label=r'Python ($\alpha$={:.2f})'.format(alpha_vec[a]))
+#     plt.legend()
+
+#     if a==1:
+#         plt.title(r'Spectral Correlation (non-conj)')
+#     elif a==3:
+#         plt.xlabel(r'$freq/f_s$', fontsize=12)
+#     plt.ylabel('Magnitude [dB]', fontsize=12)
+#     plt.grid()
+#     plt.ylim([-30, 15])
+# plt.tight_layout()
+
+# if save_figs:
+#     plt.savefig('Comparison_CSPBlog_SCF_NC.png')
+
+# # ****************************************************************************
+# # plot SCF (conjugate)
+
+# conj_dict = {-1 : 'n1',
+#               0 : '0',
+#               1 : 'p1'}
 
 
-plt.figure()
-plt.plot(freq_psd, psd_fsm, label='FSM')
-plt.plot(freq_theory_psd, psd_theory, '--', label='Theory')
-plt.plot(freq_vec/fs,
-          10*np.log10(np.abs(Syy[0, :])), ':', label='Python')
-plt.legend()
-plt.title('PSD')
-plt.grid()
-plt.ylim([-30, 15])
+# plt.figure(figsize=(8, 8))
 
+# for k in [-1, 0, 1]:
 
-# ****************************************************************************
-# plot Spectral Correlation Function (non-conjugate)
-scf_nc_fsm1 = np.squeeze(matfile['scf_nc_fsm_1'])
-freq_meas_nc = np.squeeze(matfile['f_meas_nc'])
+#     a = N_alpha_c//2 + k + 1
 
-scf_nc_theory1 = np.squeeze(matfile['scf_nc_theory_1'])
-freq_theory_nc = np.squeeze(matfile['f_theory_nc'])
+#     scf_c_fsm = np.squeeze(matfile['scf_c_fsm_' + conj_dict[k]])
+#     freq_meas_c = np.squeeze(matfile['f_meas_c'])
 
-plt.figure()
-plt.plot(freq_meas_nc, scf_nc_fsm1, label='FSM')
-plt.plot(freq_theory_nc, scf_nc_theory1, '--', label='Theory')
-plt.plot(freq_vec/fs,
-          10*np.log10(np.abs(Syy[1, :])), ':', label='Python')
-plt.legend()
-plt.title('SCF NC alpha=0.1')
-plt.grid()
-plt.ylim([-30, 15])
+#     scf_c_theory = np.squeeze(matfile['scf_c_theory_' + conj_dict[k]])
+#     freq_theory_c = np.squeeze(matfile['f_theory_c'])
 
-# ****************************************************************************
-# plot SCF (conjugate)
+#     #plt.figure()
+#     plt.subplot(3,1,k+2)
+#     plt.plot(freq_meas_c, scf_c_fsm, linewidth=2.5,
+#               label='FSM (CSP Blog)')
+#     plt.plot(freq_theory_c, scf_c_theory, '--', linewidth=3,
+#               label='Theory (CSP Blog)')
 
-scf_c_fsm1 = np.squeeze(matfile['scf_c_fsm_p1'])
-freq_meas_c = np.squeeze(matfile['f_meas_c'])
+#     plt.plot(freq_vec/fs,
+#               10*np.log10(np.abs(Syy_c[a, :])), ':', linewidth=1.5, color='k',
+#               label=r'Python ($\alpha$={:.2f})'.format(alpha_vec_c[a]))
 
-scf_c_theory1 = np.squeeze(matfile['scf_c_theory_p1'])
-freq_theory_c = np.squeeze(matfile['f_theory_c'])
+#     plt.legend()
+#     if (k+2)==1:
+#         plt.title('Spectral Correlation (conj)')
+#     elif (k+2)==3:
+#         plt.xlabel(r'$freq/f_s$', fontsize=12)
+#     plt.ylabel('Magnitude [dB]')
+#     plt.grid()
+#     plt.ylim([-30, 15])
+# plt.tight_layout()
 
-plt.figure()
-plt.plot(freq_meas_c, scf_c_fsm1, label='FSM')
-plt.plot(freq_theory_c, scf_c_theory1, '--', label='Theory')
-plt.plot(freq_vec/fs,
-          10*np.log10(np.abs(Syy_c[11, :])), ':', label='Python')
-plt.legend()
-plt.title('SCF C alpha=+0.1')
-plt.grid()
-plt.ylim([-30, 15])
+# if save_figs:
+#     plt.savefig('Comparison_CSPBlog_SCF_C.png')
+
