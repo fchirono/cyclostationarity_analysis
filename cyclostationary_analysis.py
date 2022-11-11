@@ -606,6 +606,12 @@ ax2.view_init(elev=30, azim=-45)
 N_alpha_c = 19
 alpha_vec_c = 2*fc + np.linspace(-N_alpha_c//2, N_alpha_c//2-1, N_alpha_c)*(1/T_bits)
 
+# Conjugate cyclic spectral density
+Syy_c = np.zeros((N_alpha, N_psd))
+
+# Conjugate cyclic coherence
+rho_y_c = np.zeros((N_alpha, N_psd), dtype='complex')
+
 Syy_c, rho_y_c = cyclic_periodogram(noisy_y, noisy_y, alpha_vec_c, N_psd, fs,
                                     mode='conj')
 
@@ -621,11 +627,11 @@ for a, alpha in enumerate(alpha_vec_c):
 # plot conjugate spectral correlation density
 
 plt.figure(figsize=(9, 6))
-for a in range(6, N_alpha_c-6):
+for a in range(7, N_alpha_c-7):
     plt.plot(freq_vec/fs,
              10*np.log10(np.abs(Syy_c[a, :])),
-             linestyle=lines[(a-6)%N_lines],
-             linewidth=linewidths[(a-6)//N_lines],
+             linestyle=lines[(a-7)%N_lines],
+             linewidth=linewidths[(a-7)//N_lines],
              label=r'$\alpha/f_s$={:.2f}'.format(alpha_vec_c[a]/fs))
 plt.legend(loc='upper left', fontsize=12)
 
@@ -643,11 +649,11 @@ plt.tight_layout()
 # plot spectral coherence
 
 plt.figure(figsize=(9, 6))
-for a in range(6, N_alpha_c-6):
+for a in range(7, N_alpha_c-7):
     plt.plot(freq_vec/fs,
              np.abs(rho_y_c[a, :]),
-             linestyle=lines[(a-6)%N_lines],
-             linewidth=linewidths[(a-6)//N_lines],
+             linestyle=lines[(a-7)%N_lines],
+             linewidth=linewidths[(a-7)//N_lines],
              label=r'$\alpha/f_s$={:.2f}'.format(alpha_vec_c[a]/fs))
 plt.legend(loc='upper left', fontsize=12)
 
@@ -663,7 +669,7 @@ plt.tight_layout()
 
 # ****************************************************************************
 # plot conjugate spectral correlation density
-fig3 = plt.figure(figsize=(9, 6))
+fig3 = plt.figure(figsize=(12, 9))
 ax3 = fig3.add_subplot(projection='3d')
 
 verts_c = [polygon_under_graph(freq_vec[freqs_inside_c[a]]/fs,
@@ -707,8 +713,8 @@ ax3.set_title('Conjugate Spectral correlation density', fontsize=15)
 
 
 # ****************************************************************************
-# plot conjugate coherence
-fig4 = plt.figure(figsize=(9, 6))
+# plot conjugate Spectral Correlation Density
+fig4 = plt.figure(figsize=(12, 9))
 ax4 = fig4.add_subplot(projection='3d')
 
 verts4 = [polygon_under_graph(freq_vec[freqs_inside_c[a]]/fs,
