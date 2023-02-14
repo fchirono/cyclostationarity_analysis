@@ -15,6 +15,8 @@ Check out the :doc:`usage` section for further information, including how to :re
 .. note::
 	This project is under active development, and things may change rapidly!
 
+`cyclostationarity_analysis` has its documentation hosted on Read the Docs.
+
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
