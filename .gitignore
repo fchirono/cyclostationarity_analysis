@@ -1,4 +1,5 @@
 .ipynb_checkpoints
 .spyproject
+docs/build
 *.mat
 __pycache__
